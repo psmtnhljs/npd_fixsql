@@ -9,13 +9,6 @@
 
 NodePassDash is a modern web dashboard for managing **NodePass** endpoints, tunnels, and services. It ships as a single Go binary (Gin + GORM + SQLite) with an embedded React (Vite + TypeScript + HeroUI) frontend, and provides real-time telemetry via SSE/WebSocket.
 
-## Demo
-
-- Live demo: https://dash.nodepass.eu/
-- Demo account: `nodepass` / `Np123456.`
-
-> Important: demo environment — do not change the password and do not submit any sensitive information.
-
 ## Highlights
 
 - **Modern, clean dashboard**: responsive UI built with React + Vite + TypeScript + HeroUI.
@@ -32,14 +25,6 @@ NodePassDash is a modern web dashboard for managing **NodePass** endpoints, tunn
 - **Release awareness**: built-in version visibility and update notifications to help you stay current.
 - **Portable architecture**: embedded frontend + single-service runtime, easy to run as a container or a systemd service.
 
-## Screenshots
-
-|                                                           |                                                             |                                                               |
-|-----------------------------------------------------------|-------------------------------------------------------------|---------------------------------------------------------------|
-| ![Login](docs/screenshots/00-login.gif)                   | ![Dashboard](docs/screenshots/01-dashboard.gif)             | ![Tunnels](docs/screenshots/02-tunnels.gif)                   |
-| ![Tunnel Details](docs/screenshots/03-tunnel-details.gif) | ![Endpoints](docs/screenshots/04-endpoints.gif)             | ![Endpoint Details](docs/screenshots/05-endpoint-details.gif) |
-| ![Services](docs/screenshots/06-services.gif)             | ![Service Details](docs/screenshots/07-service-details.gif) | ![Settings](docs/screenshots/09-setting.gif)         |
-
 
 ## Quick Start
 
@@ -47,12 +32,6 @@ NodePassDash is a modern web dashboard for managing **NodePass** endpoints, tunn
 - **Binary + systemd:** `docs/en/BINARY.md`
 - **Development:** `docs/en/DEVELOPMENT.md`
 
-## Documentation
-
-- **Migration Guide:** [docs/en/MIGRATION.md](docs/en/MIGRATION.md)
-- **Docker Guide:** [docs/en/DOCKER.md](docs/en/DOCKER.md)
-- **Binary Guide:** [docs/en/BINARY.md](docs/en/BINARY.md)
-- **Development Guide:** [docs/en/DEVELOPMENT.md](docs/en/DEVELOPMENT.md)
 
 ## CLI Flags
 
@@ -75,16 +54,3 @@ BSD-3-Clause. See `LICENSE`.
 
 This project is provided “as is”, without any express or implied warranties. You are responsible for complying with local laws and regulations and using it only for lawful purposes. The authors are not liable for any direct, indirect, incidental, or consequential damages. The authors reserve the right to modify features and this statement at any time.
 
-## Sponsors
-
-<table>
-  <tr>
-    <td width="240" align="center">
-      <a href="https://vps.town"><img src="https://camo.githubusercontent.com/9ec623bd5609749c17a6d806b09d9d67d4e0b436d4893b369f7bc0d9f5158081/68747470733a2f2f6e6f6465706173732e65752f6173736574732f767073746f776e2e706e67"></a>
-    </td>
-  </tr>
-</table>
-
-## Stargazers
-
-[![Star History Chart](https://api.star-history.com/svg?repos=NodePassProject/NodePassDash&type=Date)](https://star-history.com/#NodePassProject/NodePassDash&Date)
