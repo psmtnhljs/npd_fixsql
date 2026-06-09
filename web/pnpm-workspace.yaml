@@ -1,5 +1,5 @@
-onlyBuiltDependencies:
-  - "@heroui/shared-utils"
-  - "@tailwindcss/oxide"
-  - esbuild
-  - sharp
+allowBuilds:
+  "@heroui/shared-utils": true
+  "@tailwindcss/oxide": true
+  esbuild: true
+  sharp: true
