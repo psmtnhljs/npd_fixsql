@@ -9,28 +9,36 @@ import (
 	"time"
 )
 
-// DBConfig SQLite数据库配置结构
+// DBConfig PostgreSQL数据库配置结构
 type DBConfig struct {
-	Database     string        // SQLite数据库文件路径
+	Host         string        // 数据库主机
+	Port         int           // 数据库端口
+	User         string        // 数据库用户
+	Password     string        // 数据库密码
+	Database     string        // 数据库名称
+	SSLMode      string        // SSL模式
 	MaxOpenConns int           // 最大打开连接数
 	MaxIdleConns int           // 最大空闲连接数
 	MaxLifetime  time.Duration // 连接最大生命周期
 	MaxIdleTime  time.Duration // 空闲连接最大生命周期
 	LogLevel     string        // 日志级别
-	WALMode      bool          // 是否启用WAL模式
 }
 
 // GetDBConfig 获取数据库配置，支持多种来源
-func GetDBConfig(dbDir string) DBConfig {
+func GetDBConfig() DBConfig {
 	config := DBConfig{
-		// 默认值 - SQLite配置
-		Database:     dbDir + "/database.db", // 默认数据库文件路径
-		MaxOpenConns: 10,                     // SQLite推荐的连接数较小
-		MaxIdleConns: 5,
+		// 默认值 - PostgreSQL配置
+		Host:         "localhost",
+		Port:         5432,
+		User:         "nodepassdash",
+		Password:     "",
+		Database:     "nodepassdash",
+		SSLMode:      "disable",
+		MaxOpenConns: 25,
+		MaxIdleConns: 10,
 		MaxLifetime:  5 * time.Minute,
 		MaxIdleTime:  2 * time.Minute,
 		LogLevel:     "silent",
-		WALMode:      true, // 启用WAL模式以提高并发性能
 	}
 
 	// 1. 从命令行参数读取
@@ -45,49 +53,75 @@ func GetDBConfig(dbDir string) DBConfig {
 	// 验证配置
 	if err := validateConfig(&config); err != nil {
 		log.Errorf("数据库配置验证失败: %v", err)
-		// 使用默认配置
 	}
 
-	log.Infof("数据库配置: %s", config.Database)
+	log.Infof("数据库配置: %s@%s:%d/%s", config.User, config.Host, config.Port, config.Database)
 	return config
 }
 
 // loadFromFlags 从命令行参数加载配置
 func loadFromFlags(config *DBConfig) {
-	// 只有在flag已经解析后才读取值
 	if !flag.Parsed() {
 		return
 	}
 
-	// 读取已经解析的flag值
-	if dbPath := flag.Lookup("db-path"); dbPath != nil {
-		config.Database = dbPath.Value.String()
+	if v := flag.Lookup("db-host"); v != nil {
+		config.Host = v.Value.String()
 	}
-	if dbMaxOpen := flag.Lookup("db-max-open"); dbMaxOpen != nil {
-		if val, err := strconv.Atoi(dbMaxOpen.Value.String()); err == nil {
+	if v := flag.Lookup("db-port"); v != nil {
+		if val, err := strconv.Atoi(v.Value.String()); err == nil {
+			config.Port = val
+		}
+	}
+	if v := flag.Lookup("db-user"); v != nil {
+		config.User = v.Value.String()
+	}
+	if v := flag.Lookup("db-password"); v != nil {
+		config.Password = v.Value.String()
+	}
+	if v := flag.Lookup("db-name"); v != nil {
+		config.Database = v.Value.String()
+	}
+	if v := flag.Lookup("db-sslmode"); v != nil {
+		config.SSLMode = v.Value.String()
+	}
+	if v := flag.Lookup("db-max-open"); v != nil {
+		if val, err := strconv.Atoi(v.Value.String()); err == nil {
 			config.MaxOpenConns = val
 		}
 	}
-	if dbMaxIdle := flag.Lookup("db-max-idle"); dbMaxIdle != nil {
-		if val, err := strconv.Atoi(dbMaxIdle.Value.String()); err == nil {
+	if v := flag.Lookup("db-max-idle"); v != nil {
+		if val, err := strconv.Atoi(v.Value.String()); err == nil {
 			config.MaxIdleConns = val
 		}
 	}
-	if dbLogLevel := flag.Lookup("db-log-level"); dbLogLevel != nil {
-		config.LogLevel = dbLogLevel.Value.String()
-	}
-	if dbWalMode := flag.Lookup("db-wal-mode"); dbWalMode != nil {
-		config.WALMode = dbWalMode.Value.String() == "true"
+	if v := flag.Lookup("db-log-level"); v != nil {
+		config.LogLevel = v.Value.String()
 	}
 }
 
 // loadFromEnv 从环境变量加载配置
 func loadFromEnv(config *DBConfig) {
-	if value := os.Getenv("DB_PATH"); value != "" {
+	if value := os.Getenv("DB_HOST"); value != "" {
+		config.Host = value
+	}
+	if value := os.Getenv("DB_PORT"); value != "" {
+		if intVal, err := strconv.Atoi(value); err == nil {
+			config.Port = intVal
+		}
+	}
+	if value := os.Getenv("DB_USER"); value != "" {
+		config.User = value
+	}
+	if value := os.Getenv("DB_PASSWORD"); value != "" {
+		config.Password = value
+	}
+	if value := os.Getenv("DB_NAME"); value != "" {
 		config.Database = value
 	}
-
-	// 数字类型的环境变量
+	if value := os.Getenv("DB_SSLMODE"); value != "" {
+		config.SSLMode = value
+	}
 	if value := os.Getenv("DB_MAX_OPEN_CONNS"); value != "" {
 		if intVal, err := strconv.Atoi(value); err == nil {
 			config.MaxOpenConns = intVal
@@ -111,17 +145,10 @@ func loadFromEnv(config *DBConfig) {
 	if value := os.Getenv("DB_LOG_LEVEL"); value != "" {
 		config.LogLevel = value
 	}
-	if value := os.Getenv("DB_WAL_MODE"); value != "" {
-		config.WALMode = value == "true"
-	}
 }
 
 // loadFromFile 从配置文件加载配置（简化实现）
 func loadFromFile(config *DBConfig) {
-	// 可以在这里实现从 .env 文件或其他配置文件读取
-	// 为了简化，这里只是一个占位符
-
-	// 示例：读取 .env 文件
 	if _, err := os.Stat(".env"); err == nil {
 		log.Info("检测到 .env 文件，建议使用环境变量替代")
 	}
@@ -129,8 +156,14 @@ func loadFromFile(config *DBConfig) {
 
 // validateConfig 验证配置的有效性
 func validateConfig(config *DBConfig) error {
+	if config.Host == "" {
+		return fmt.Errorf("数据库主机不能为空")
+	}
+	if config.Port < 1 || config.Port > 65535 {
+		return fmt.Errorf("数据库端口必须在1-65535之间")
+	}
 	if config.Database == "" {
-		return fmt.Errorf("数据库文件路径不能为空")
+		return fmt.Errorf("数据库名称不能为空")
 	}
 	if config.MaxOpenConns <= 0 {
 		return fmt.Errorf("最大连接数必须大于0")
@@ -144,32 +177,25 @@ func validateConfig(config *DBConfig) error {
 	return nil
 }
 
-// BuildDSN 构建SQLite连接字符串
+// BuildDSN 构建PostgreSQL连接字符串
 func (c *DBConfig) BuildDSN() string {
-	// 为modernc.org/sqlite驱动构建DSN
-	dsn := c.Database + "?_pragma=foreign_keys(1)"
-
-	if c.WALMode {
-		dsn += "&_pragma=journal_mode(WAL)"
-	}
-
-	// 添加更多优化配置以避免锁定
-	dsn += "&_pragma=busy_timeout(30000)" // 30秒超时
-	dsn += "&_pragma=synchronous(NORMAL)" // 平衡性能和安全
-	dsn += "&_pragma=cache_size(2000)"    // 缓存大小
-	dsn += "&_pragma=temp_store(memory)"  // 临时数据存储在内存
-
-	return dsn
+	return fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=Asia/Shanghai",
+		c.Host, c.User, c.Password, c.Database, c.Port, c.SSLMode,
+	)
 }
 
 // PrintConfig 打印配置信息
 func (c *DBConfig) PrintConfig() {
-	log.Infof("SQLite数据库配置:")
-	log.Infof("  数据库文件: %s", c.Database)
+	log.Infof("PostgreSQL数据库配置:")
+	log.Infof("  主机: %s", c.Host)
+	log.Infof("  端口: %d", c.Port)
+	log.Infof("  用户: %s", c.User)
+	log.Infof("  数据库: %s", c.Database)
+	log.Infof("  SSL模式: %s", c.SSLMode)
 	log.Infof("  最大连接数: %d", c.MaxOpenConns)
 	log.Infof("  最大空闲连接数: %d", c.MaxIdleConns)
 	log.Infof("  连接生命周期: %v", c.MaxLifetime)
 	log.Infof("  空闲超时: %v", c.MaxIdleTime)
 	log.Infof("  日志级别: %s", c.LogLevel)
-	log.Infof("  WAL模式: %v", c.WALMode)
 }

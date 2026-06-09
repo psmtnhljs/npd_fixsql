@@ -10,12 +10,18 @@ import (
 
 // TrafficScheduler 流量数据聚合调度器
 type TrafficScheduler struct {
-	db             *gorm.DB
-	trafficService *TrafficService
-	cleanupService *CleanupService
-	ticker         *time.Ticker
-	ctx            context.Context
-	cancel         context.CancelFunc
+	db              *gorm.DB
+	trafficService  *TrafficService
+	cleanupService  *CleanupService
+	ticker          *time.Ticker
+	ctx             context.Context
+	cancel          context.CancelFunc
+	extraCleanupFns []func() // 额外的清理回调
+}
+
+// RegisterCleanupCallback 注册额外的清理回调函数
+func (s *TrafficScheduler) RegisterCleanupCallback(fn func()) {
+	s.extraCleanupFns = append(s.extraCleanupFns, fn)
 }
 
 // NewTrafficScheduler 创建流量调度器
@@ -151,6 +157,11 @@ func (s *TrafficScheduler) executeCleanup() {
 		if result.Error != nil {
 			log.Printf("[流量调度器] %s 清理出现错误: %v", result.TableName, result.Error)
 		}
+	}
+
+	// 执行额外的清理回调
+	for _, fn := range s.extraCleanupFns {
+		fn()
 	}
 
 	duration := time.Since(start)

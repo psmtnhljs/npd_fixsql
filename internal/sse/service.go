@@ -332,6 +332,10 @@ func (s *Service) handleDeleteEvent(payload SSEResp) {
 		log.Infof("[Master-%d]隧道 %s 删除成功", payload.EndpointID, payload.Instance.ID)
 		// 更新端点隧道计数
 		s.updateEndpointTunnelCount(payload.EndpointID)
+		// 清理该实例的历史状态缓存
+		if s.historyWorker != nil {
+			s.historyWorker.RemoveInstance(payload.EndpointID, payload.Instance.ID)
+		}
 	}
 }
 
@@ -379,6 +383,11 @@ func (s *Service) handleShutdownEvent(payload SSEResp) {
 	// 如果端点状态变为离线，设置所有相关隧道为离线状态
 	if err := s.setTunnelsOfflineForEndpoint(payload.EndpointID); err != nil {
 		log.Errorf("[Master-%d]设置隧道离线状态失败: %v", payload.EndpointID, err)
+	}
+
+	// 清理该端点下所有实例的历史状态缓存
+	if s.historyWorker != nil {
+		s.historyWorker.RemoveEndpoint(payload.EndpointID)
 	}
 
 	// 通知Manager状态变化

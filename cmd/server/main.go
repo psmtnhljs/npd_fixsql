@@ -418,6 +418,11 @@ func main() {
 	// 启动后台服务
 	trafficScheduler = startBackgroundServices(gormDB, sseService, sseManager, wsService)
 
+	// 注册定期清理回调
+	trafficScheduler.RegisterCleanupCallback(func() {
+		authService.CleanupExpiredSessions()
+	})
+
 	// 记录未使用的变量以避免编译错误
 	_ = authService
 	_ = endpointService

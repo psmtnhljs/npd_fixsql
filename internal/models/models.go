@@ -110,7 +110,7 @@ type Tunnel struct {
 
 	CreatedAt     time.Time `json:"createdAt" gorm:"autoCreateTime;index;column:created_at"`
 	UpdatedAt     time.Time `json:"updatedAt" gorm:"autoUpdateTime;column:updated_at"`
-	LastEventTime NullTime  `json:"lastEventTime,omitempty" gorm:"column:last_event_time;type:datetime"`
+	LastEventTime NullTime  `json:"lastEventTime,omitempty" gorm:"column:last_event_time;type:timestamp"`
 
 	// 关联
 	Endpoint     Endpoint      `json:"endpoint,omitempty" gorm:"foreignKey:EndpointID"`
@@ -248,7 +248,7 @@ func (OAuthUser) TableName() string {
 type ServiceHistory struct {
 	ID         int64  `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
 	EndpointID int64  `json:"endpointId" gorm:"not null;index;column:endpoint_id"`
-	InstanceID string `json:"instanceId" gorm:"type:text;not null;index;column:instance_id"`
+	InstanceID string `json:"instanceId" gorm:"type:text;not null;index:idx_instance_record_time;column:instance_id"`
 
 	// 聚合后的网络流量总变化量（差值累计）和平均值
 	DeltaTCPIn  int64   `json:"deltaTcpIn" gorm:"default:0;column:delta_tcp_in"`   // TCP入站总流量变化
@@ -267,7 +267,7 @@ type ServiceHistory struct {
 	// 统计信息
 	RecordCount int       `json:"recordCount" gorm:"default:0;column:record_count"`    // 参与聚合的数据点数量
 	UpCount     int       `json:"upCount" gorm:"default:0;column:up_count"`            // 在线次数（用于加权平均）
-	RecordTime  time.Time `json:"recordTime" gorm:"not null;index;column:record_time"` // 记录时间（每分钟一条记录）
+	RecordTime  time.Time `json:"recordTime" gorm:"not null;index:idx_instance_record_time;column:record_time"` // 记录时间（每分钟一条记录）
 	CreatedAt   time.Time `json:"createdAt" gorm:"autoCreateTime;column:created_at"`
 
 	// 关联

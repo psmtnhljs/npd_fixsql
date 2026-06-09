@@ -5,8 +5,8 @@ import "time"
 // TrafficHourlySummary 流量小时汇总表
 type TrafficHourlySummary struct {
 	ID             int64     `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	HourTime       time.Time `json:"hourTime" gorm:"index:idx_traffic_hour_time;column:hour_time"`
-	InstanceID     string    `json:"instanceId" gorm:"type:text;column:instance_id"`
+	HourTime       time.Time `json:"hourTime" gorm:"not null;uniqueIndex:idx_hour_instance;column:hour_time"`
+	InstanceID     string    `json:"instanceId" gorm:"type:text;not null;uniqueIndex:idx_hour_instance;column:instance_id"`
 	EndpointID     int64     `json:"endpointId" gorm:"column:endpoint_id"`
 	TCPRxTotal     int64     `json:"tcpRxTotal" gorm:"default:0;column:tcp_rx_total"`
 	TCPTxTotal     int64     `json:"tcpTxTotal" gorm:"default:0;column:tcp_tx_total"`

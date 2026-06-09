@@ -45,8 +45,9 @@ type TransferData struct {
 // ServiceCurrentStatus 单个实例的当前状态数据
 // 重要：每个实例（endpoint + instance）都有独立的状态容器
 type ServiceCurrentStatus struct {
-	Result []MonitoringData // 该实例独立的累积数据点数组（最大_CurrentStatusSize个）
-	mu     sync.RWMutex     // 读写锁保护该实例的状态数据
+	Result     []MonitoringData // 该实例独立的累积数据点数组（最大_CurrentStatusSize个）
+	mu         sync.RWMutex     // 读写锁保护该实例的状态数据
+	lastAccess time.Time        // 最后访问时间，用于空闲清理
 }
 
 // HistoryWorker 历史数据处理Worker（参照Nezha设计）
@@ -78,6 +79,10 @@ func NewHistoryWorker(db *gorm.DB) *HistoryWorker {
 	// 启动主数据处理协程（参照Nezha的worker设计）
 	worker.wg.Add(1)
 	go worker.dataProcessWorker()
+
+	// 启动空闲实例清理协程
+	worker.wg.Add(1)
+	go worker.idleCleanupWorker()
 
 	// 移除批量写入协程（改为立即写入）
 	// worker.wg.Add(1)
@@ -158,7 +163,8 @@ func (hw *HistoryWorker) processMonitoringData(data MonitoringData) {
 	if !exists {
 		// 为该实例创建独立的状态数据容器，每个实例都有自己的数据点累积数组
 		currentStatus = &ServiceCurrentStatus{
-			Result: make([]MonitoringData, 0, _CurrentStatusSize), // 独立的数据点数组
+			Result:     make([]MonitoringData, 0, _CurrentStatusSize), // 独立的数据点数组
+			lastAccess: time.Now(),
 		}
 
 		hw.mu.Lock()
@@ -170,6 +176,7 @@ func (hw *HistoryWorker) processMonitoringData(data MonitoringData) {
 
 	// 直接添加数据点，记录累计值
 	currentStatus.mu.Lock()
+	currentStatus.lastAccess = time.Now()
 
 	// 创建包含累计值的数据点
 	monitoringData := MonitoringData{
@@ -359,6 +366,29 @@ func (hw *HistoryWorker) buildDataKey(endpointID int64, instanceID string) strin
 	return fmt.Sprintf("%d_%s", endpointID, instanceID)
 }
 
+// RemoveInstance 显式移除指定实例的状态数据（实例下线或删除时调用）
+func (hw *HistoryWorker) RemoveInstance(endpointID int64, instanceID string) {
+	key := hw.buildDataKey(endpointID, instanceID)
+	hw.mu.Lock()
+	delete(hw.serviceCurrentStatusData, key)
+	hw.mu.Unlock()
+	log.Debugf("[HistoryWorker]显式移除实例状态: %s", key)
+}
+
+// RemoveEndpoint 显式移除指定端点下所有实例的状态数据（端点离线时调用）
+func (hw *HistoryWorker) RemoveEndpoint(endpointID int64) {
+	prefix := fmt.Sprintf("%d_", endpointID)
+	hw.mu.Lock()
+	defer hw.mu.Unlock()
+
+	for key := range hw.serviceCurrentStatusData {
+		if len(key) > len(prefix) && key[:len(prefix)] == prefix {
+			delete(hw.serviceCurrentStatusData, key)
+			log.Debugf("[HistoryWorker]显式移除端点实例状态: %s", key)
+		}
+	}
+}
+
 // calculateDelta 计算流量差值（参照Nezha Transfer表设计）
 // 处理累计值重置和异常情况
 func (hw *HistoryWorker) calculateDelta(current, last int64) int64 {
@@ -427,4 +457,39 @@ func (hw *HistoryWorker) Close() {
 	}
 
 	log.Info("历史数据处理Worker已关闭")
+}
+
+// idleCleanupWorker 定期清理长时间无数据更新的实例状态
+func (hw *HistoryWorker) idleCleanupWorker() {
+	defer hw.wg.Done()
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	const maxIdleTime = 10 * time.Minute
+
+	for {
+		select {
+		case <-hw.stopChan:
+			return
+		case <-ticker.C:
+			hw.cleanupIdleEntries(maxIdleTime)
+		}
+	}
+}
+
+func (hw *HistoryWorker) cleanupIdleEntries(maxIdle time.Duration) {
+	now := time.Now()
+	hw.mu.Lock()
+	defer hw.mu.Unlock()
+
+	for key, status := range hw.serviceCurrentStatusData {
+		status.mu.RLock()
+		idle := now.Sub(status.lastAccess)
+		status.mu.RUnlock()
+
+		if idle > maxIdle {
+			delete(hw.serviceCurrentStatusData, key)
+			log.Debugf("[HistoryWorker]清理空闲实例状态: %s (空闲%v)", key, idle)
+		}
+	}
 }
