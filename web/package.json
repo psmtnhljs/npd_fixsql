@@ -50,14 +50,6 @@
     "tailwind-variants": "2.0.1",
     "zod": "^3.22.0"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@heroui/shared-utils",
-      "@tailwindcss/oxide",
-      "esbuild",
-      "sharp"
-    ]
-  },
   "devDependencies": {
     "@eslint/compat": "1.2.8",
     "@eslint/eslintrc": "3.3.1",
