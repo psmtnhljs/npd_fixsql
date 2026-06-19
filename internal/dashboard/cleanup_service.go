@@ -78,16 +78,7 @@ func (s *CleanupService) ExecuteFullCleanup() ([]CleanupResult, error) {
 	}
 	results = append(results, sseResult)
 
-	// 2. 清理过期的服务历史记录
-	historyResult := s.cleanupServiceHistory()
-	if historyResult.Error != nil {
-		log.Printf("[数据清理] 服务历史记录清理失败: %v", historyResult.Error)
-	} else {
-		log.Printf("[数据清理] 服务历史记录清理完成: 删除 %d 条记录，耗时 %v", historyResult.DeletedCount, historyResult.Duration)
-	}
-	results = append(results, historyResult)
-
-	// 3. 清理过期的汇总数据
+	// 2. 清理过期的汇总数据
 	summaryResult := s.cleanupSummaryData()
 	if summaryResult.Error != nil {
 		log.Printf("[数据清理] 汇总数据清理失败: %v", summaryResult.Error)
@@ -96,7 +87,7 @@ func (s *CleanupService) ExecuteFullCleanup() ([]CleanupResult, error) {
 	}
 	results = append(results, summaryResult)
 
-	// 4. 清理过期的操作日志
+	// 3. 清理过期的操作日志
 	logResult := s.cleanupOperationLogs()
 	if logResult.Error != nil {
 		log.Printf("[数据清理] 操作日志清理失败: %v", logResult.Error)
@@ -105,7 +96,7 @@ func (s *CleanupService) ExecuteFullCleanup() ([]CleanupResult, error) {
 	}
 	results = append(results, logResult)
 
-	// 5. 优化数据库表
+	// 4. 优化数据库表
 	optimizeResult := s.optimizeTables()
 	if optimizeResult.Error != nil {
 		log.Printf("[数据清理] 表优化失败: %v", optimizeResult.Error)
@@ -122,7 +113,7 @@ func (s *CleanupService) ExecuteFullCleanup() ([]CleanupResult, error) {
 func (s *CleanupService) cleanupSSEData() CleanupResult {
 	start := time.Now()
 	result := CleanupResult{
-		TableName: "endpoint_sse_events",
+		TableName: "endpoint_sse",
 		Duration:  0,
 	}
 
@@ -135,11 +126,11 @@ func (s *CleanupService) cleanupSSEData() CleanupResult {
 
 	for {
 		var deletedCount int64
-		// 使用子查询方式分批删除
+		// SQLite 不支持 DELETE ... LIMIT，使用子查询方式
 		err := s.db.Exec(`
-			DELETE FROM endpoint_sse_events
+			DELETE FROM endpoint_sse
 			WHERE id IN (
-				SELECT id FROM endpoint_sse_events
+				SELECT id FROM endpoint_sse
 				WHERE event_time < ?
 				LIMIT ?
 			)
@@ -186,7 +177,7 @@ func (s *CleanupService) cleanupSummaryData() CleanupResult {
 
 	for {
 		var deletedCount int64
-		// 使用子查询方式分批删除
+		// SQLite 不支持 DELETE ... LIMIT，使用子查询方式
 		err := s.db.Exec(`
 			DELETE FROM traffic_hourly_summary
 			WHERE id IN (
@@ -234,7 +225,7 @@ func (s *CleanupService) cleanupOperationLogs() CleanupResult {
 
 	for {
 		var deletedCount int64
-		// 使用子查询方式分批删除
+		// SQLite 不支持 DELETE ... LIMIT，使用子查询方式
 		err := s.db.Exec(`
 			DELETE FROM tunnel_operation_logs
 			WHERE id IN (
@@ -265,51 +256,6 @@ func (s *CleanupService) cleanupOperationLogs() CleanupResult {
 	return result
 }
 
-// cleanupServiceHistory 清理过期的服务历史记录
-func (s *CleanupService) cleanupServiceHistory() CleanupResult {
-	start := time.Now()
-	result := CleanupResult{
-		TableName: "service_history",
-		Duration:  0,
-	}
-
-	cutoffTime := time.Now().AddDate(0, 0, -7)
-
-	totalDeleted := int64(0)
-	batchSize := s.config.BatchSize
-
-	for {
-		var deletedCount int64
-		err := s.db.Exec(`
-			DELETE FROM service_history
-			WHERE id IN (
-				SELECT id FROM service_history
-				WHERE record_time < ?
-				LIMIT ?
-			)
-		`, cutoffTime, batchSize).Error
-
-		if err != nil {
-			result.Error = fmt.Errorf("删除服务历史记录失败: %v", err)
-			break
-		}
-
-		deletedCount = s.db.RowsAffected
-		totalDeleted += deletedCount
-
-		if deletedCount < int64(batchSize) {
-			break
-		}
-
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	result.DeletedCount = totalDeleted
-	result.Duration = time.Since(start)
-
-	return result
-}
-
 // optimizeTables 优化数据库表
 func (s *CleanupService) optimizeTables() CleanupResult {
 	start := time.Now()
@@ -318,28 +264,12 @@ func (s *CleanupService) optimizeTables() CleanupResult {
 		Duration:  0,
 	}
 
-	// PostgreSQL: VACUUM ANALYZE 回收空间并更新统计信息
-	// 注意：VACUUM 不能在事务中执行
-	sqlDB, err := s.db.DB()
-	if err != nil {
-		result.Error = fmt.Errorf("获取 sql.DB 失败: %v", err)
-		result.Duration = time.Since(start)
-		return result
-	}
-
-	tables := []string{
-		"endpoint_sse_events",
-		"service_history",
-		"traffic_hourly_summary",
-		"tunnel_operation_logs",
-	}
-
-	for _, table := range tables {
-		if _, err := sqlDB.Exec(fmt.Sprintf("VACUUM ANALYZE %s", table)); err != nil {
-			log.Printf("[数据清理] VACUUM ANALYZE %s 失败: %v", table, err)
-		} else {
-			log.Printf("[数据清理] VACUUM ANALYZE %s 成功", table)
-		}
+	// PostgreSQL 使用 VACUUM ANALYZE 回收空间并更新统计信息
+	if err := s.db.Exec("VACUUM ANALYZE").Error; err != nil {
+		log.Printf("[数据清理] VACUUM ANALYZE 优化失败: %v", err)
+		result.Error = fmt.Errorf("VACUUM ANALYZE 优化失败: %v", err)
+	} else {
+		log.Println("[数据清理] VACUUM ANALYZE 优化成功")
 	}
 
 	result.Duration = time.Since(start)
@@ -355,8 +285,8 @@ func (s *CleanupService) GetCleanupStats() (map[string]interface{}, error) {
 	var sseOldCount int64
 	cutoffTime := time.Now().AddDate(0, 0, -s.config.SSEDataRetentionDays)
 
-	s.db.Raw("SELECT COUNT(*) FROM endpoint_sse_events").Scan(&sseCount)
-	s.db.Raw("SELECT COUNT(*) FROM endpoint_sse_events WHERE event_time < ?", cutoffTime).Scan(&sseOldCount)
+	s.db.Raw("SELECT COUNT(*) FROM endpoint_sse").Scan(&sseCount)
+	s.db.Raw("SELECT COUNT(*) FROM endpoint_sse WHERE event_time < ?", cutoffTime).Scan(&sseOldCount)
 
 	stats["sse_total_count"] = sseCount
 	stats["sse_cleanup_count"] = sseOldCount

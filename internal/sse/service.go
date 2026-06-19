@@ -628,7 +628,7 @@ func (s *Service) upsertService(instanceID string, tunnel *models.Tunnel) {
 			service.TotalTx = tunnel.TCPTx + tunnel.UDPTx
 			// 查询 client 端流量
 			var clientTunnel models.Tunnel
-			if err := s.db.Where("peer->>'$.sid' = ? AND peer->>'$.type' = ? AND type = ?", *peer.SID, *peer.Type, models.TunnelModeClient).First(&clientTunnel).Error; err == nil {
+			if err := s.db.Where("peer->>'sid' = ? AND peer->>'type' = ? AND type = ?", *peer.SID, *peer.Type, models.TunnelModeClient).First(&clientTunnel).Error; err == nil {
 				service.TotalRx += clientTunnel.TCPRx + clientTunnel.UDPRx
 				service.TotalTx += clientTunnel.TCPTx + clientTunnel.UDPTx
 			}
@@ -646,7 +646,7 @@ func (s *Service) upsertService(instanceID string, tunnel *models.Tunnel) {
 			service.TotalTx = tunnel.TCPTx + tunnel.UDPTx
 			// 查询 server 端流量
 			var serverTunnel models.Tunnel
-			if err := s.db.Where("peer->>'$.sid' = ? AND peer->>'$.type' = ? AND type = ?", *peer.SID, *peer.Type, models.TunnelModeServer).First(&serverTunnel).Error; err == nil {
+			if err := s.db.Where("peer->>'sid' = ? AND peer->>'type' = ? AND type = ?", *peer.SID, *peer.Type, models.TunnelModeServer).First(&serverTunnel).Error; err == nil {
 				service.TotalRx += serverTunnel.TCPRx + serverTunnel.UDPRx
 				service.TotalTx += serverTunnel.TCPTx + serverTunnel.UDPTx
 			}
@@ -668,7 +668,7 @@ func (s *Service) upsertService(instanceID string, tunnel *models.Tunnel) {
 			service.TotalTx = tunnel.TCPTx + tunnel.UDPTx
 			// 查询 client 端流量
 			var clientTunnel models.Tunnel
-			if err := s.db.Where("peer->>'$.sid' = ? AND peer->>'$.type' = ? AND type = ?", *peer.SID, *peer.Type, models.TunnelModeClient).First(&clientTunnel).Error; err == nil {
+			if err := s.db.Where("peer->>'sid' = ? AND peer->>'type' = ? AND type = ?", *peer.SID, *peer.Type, models.TunnelModeClient).First(&clientTunnel).Error; err == nil {
 				service.TotalRx += clientTunnel.TCPRx + clientTunnel.UDPRx
 				service.TotalTx += clientTunnel.TCPTx + clientTunnel.UDPTx
 			}
@@ -694,7 +694,7 @@ func (s *Service) upsertService(instanceID string, tunnel *models.Tunnel) {
 			service.TotalTx = tunnel.TCPTx + tunnel.UDPTx
 			// 查询 server 端流量
 			var serverTunnel models.Tunnel
-			if err := s.db.Where("peer->>'$.sid' = ? AND peer->>'$.type' = ? AND type = ?", *peer.SID, *peer.Type, models.TunnelModeServer).First(&serverTunnel).Error; err == nil {
+			if err := s.db.Where("peer->>'sid' = ? AND peer->>'type' = ? AND type = ?", *peer.SID, *peer.Type, models.TunnelModeServer).First(&serverTunnel).Error; err == nil {
 				service.TotalRx += serverTunnel.TCPRx + serverTunnel.UDPRx
 				service.TotalTx += serverTunnel.TCPTx + serverTunnel.UDPTx
 			}

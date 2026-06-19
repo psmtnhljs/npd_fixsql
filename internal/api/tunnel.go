@@ -2858,7 +2858,7 @@ func (h *TunnelHandler) HandleUpdateTunnelV3(c *gin.Context) {
 			Updates(updates)
 
 		if result.Error != nil {
-			log.Errorf("[Master-%d]更新隧道 %s 运行时信息失败: %v", raw.EndpointID, raw.ID, result.Error)
+			log.Errorf("[Master-%d]更新隧道 %d 运行时信息失败: %v", raw.EndpointID, raw.ID, result.Error)
 			return
 		}
 	}
@@ -2986,7 +2986,7 @@ func (h *TunnelHandler) HandleExportTunnelLogs(c *gin.Context) {
 		return
 	}
 
-	log.Infof("[API] 成功导出隧道 %s (ID: %d) 的日志文件，包含 %d 个.log文件和", tunnelName, tunnelID, logFileCount)
+	log.Infof("[API] 成功导出隧道 %s (ID: %d) 的日志文件，包含 %d 个 log 文件", tunnelName, tunnelID, logFileCount)
 }
 
 // ========== Instance 相关处理函数 ==========

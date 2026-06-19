@@ -54,7 +54,7 @@ type Tunnel struct {
 	TargetAddress       string       `json:"targetAddress" gorm:"type:text;not null;column:target_address"`
 	TargetPort          string       `json:"targetPort" gorm:"type:text;not null;column:target_port"`
 	ListenType          *string      `json:"listenType,omitempty" gorm:"type:text;column:listen_type"`
-	ExtendTargetAddress *[]string    `json:"extendTargetAddress,omitempty" gorm:"type:text;serializer:json;column:extend_target_address"`
+	ExtendTargetAddress *[]string    `json:"extendTargetAddress,omitempty" gorm:"type:jsonb;serializer:json;column:extend_target_address"`
 	TLSMode             TLSMode      `json:"tlsMode" gorm:"type:text;column:tls_mode"`
 	CertPath            *string      `json:"certPath,omitempty" gorm:"type:text;column:cert_path"`
 	KeyPath             *string      `json:"keyPath,omitempty" gorm:"type:text;column:key_path"`
@@ -92,15 +92,15 @@ type Tunnel struct {
 	ProxyProtocol *bool `json:"proxyProtocol,omitempty" gorm:"column:proxy_protocol"`
 
 	// 标签 (JSON格式存储为map[string]string)
-	Tags *map[string]string `json:"tags,omitempty" gorm:"type:text;serializer:json;column:tags"`
+	Tags *map[string]string `json:"tags,omitempty" gorm:"type:jsonb;serializer:json;column:tags"`
 
 	// 配置行 (存储Config字段内容)
 	ConfigLine *string `json:"configLine,omitempty" gorm:"type:text;column:config_line"`
-	Peer       *Peer   `json:"peer,omitempty" gorm:"type:text;serializer:json;column:peer"`
+	Peer       *Peer   `json:"peer,omitempty" gorm:"type:jsonb;serializer:json;column:peer"`
 	Dial       *string `json:"dial,omitempty" gorm:"type:text;column:dial"` //出站源IP地址
 	PoolType   *int    `json:"poolType,omitempty" gorm:"type:int;column:pool_type"`
 	Dns        *string `json:"dns,omitempty" gorm:"type:text;column:dns"`
-	Sni        *string `json:"sni,omitempty" gorm:"type:text;column:sni"`   //SNI服务器名称指示
+	Sni        *string `json:"sni,omitempty" gorm:"type:text;column:sni"`    //SNI服务器名称指示
 	Block      *int    `json:"block,omitempty" gorm:"type:int;column:block"` //协议屏蔽：0-禁用, 1-SOCKS, 2-HTTP, 3-TLS
 
 	Sorts int64 `json:"sorts" gorm:"type:int;column:sorts;default:0"`
@@ -283,6 +283,7 @@ func (ServiceHistory) TableName() string {
 type EndpointSSE struct {
 	ID           int64        `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
 	EventType    SSEEventType `json:"eventType" gorm:"type:text;not null;column:event_type"`
+	PushType     string       `json:"pushType" gorm:"type:text;not null;column:push_type"`
 	EventTime    time.Time    `json:"eventTime" gorm:"not null;column:event_time"`
 	EndpointID   int64        `json:"endpointId" gorm:"not null;index;column:endpoint_id"`
 	InstanceID   string       `json:"instanceId" gorm:"type:text;not null;column:instance_id"`
@@ -302,5 +303,5 @@ type EndpointSSE struct {
 
 // TableName 设置表名
 func (EndpointSSE) TableName() string {
-	return "endpoint_sse_events"
+	return "endpoint_sse"
 }

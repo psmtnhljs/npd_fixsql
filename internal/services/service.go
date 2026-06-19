@@ -51,7 +51,7 @@ func (s *ServiceImpl) GetAvailableInstances() ([]*AvailableInstance, error) {
 
 	// 查询没有 peer 或 peer.sid 为空的隧道
 	// peer 字段为 JSON，需要检查是否为 null 或者 sid 字段为空
-	err := s.db.Where("peer IS NULL OR json_extract(peer, '$.sid') IS NULL OR json_extract(peer, '$.sid') = ''").
+	err := s.db.Where("peer IS NULL OR peer->>'sid' IS NULL OR peer->>'sid' = ''").
 		Preload("Endpoint").
 		Find(&tunnels).Error
 
@@ -570,7 +570,7 @@ func (s *ServiceImpl) syncServiceFromTunnel(sid, serviceType, instanceID string,
 			service.TotalTx = tunnel.TCPTx + tunnel.UDPTx
 			// 查询 client 端流量
 			var clientTunnel models.Tunnel
-			if err := s.db.Where("peer->>'$.sid' = ? AND peer->>'$.type' = ? AND type = ?", sid, serviceType, models.TunnelModeClient).First(&clientTunnel).Error; err == nil {
+			if err := s.db.Where("peer->>'sid' = ? AND peer->>'type' = ? AND type = ?", sid, serviceType, models.TunnelModeClient).First(&clientTunnel).Error; err == nil {
 				service.TotalRx += clientTunnel.TCPRx + clientTunnel.UDPRx
 				service.TotalTx += clientTunnel.TCPTx + clientTunnel.UDPTx
 			}
@@ -589,7 +589,7 @@ func (s *ServiceImpl) syncServiceFromTunnel(sid, serviceType, instanceID string,
 			service.TotalTx = tunnel.TCPTx + tunnel.UDPTx
 			// 查询 server 端流量
 			var serverTunnel models.Tunnel
-			if err := s.db.Where("peer->>'$.sid' = ? AND peer->>'$.type' = ? AND type = ?", sid, serviceType, models.TunnelModeServer).First(&serverTunnel).Error; err == nil {
+			if err := s.db.Where("peer->>'sid' = ? AND peer->>'type' = ? AND type = ?", sid, serviceType, models.TunnelModeServer).First(&serverTunnel).Error; err == nil {
 				service.TotalRx += serverTunnel.TCPRx + serverTunnel.UDPRx
 				service.TotalTx += serverTunnel.TCPTx + serverTunnel.UDPTx
 			}
@@ -620,7 +620,7 @@ func (s *ServiceImpl) syncServiceFromTunnel(sid, serviceType, instanceID string,
 			service.TotalTx = tunnel.TCPTx + tunnel.UDPTx
 			// 查询 client 端流量
 			var clientTunnel models.Tunnel
-			if err := s.db.Where("peer->>'$.sid' = ? AND peer->>'$.type' = ? AND type = ?", sid, serviceType, models.TunnelModeClient).First(&clientTunnel).Error; err == nil {
+			if err := s.db.Where("peer->>'sid' = ? AND peer->>'type' = ? AND type = ?", sid, serviceType, models.TunnelModeClient).First(&clientTunnel).Error; err == nil {
 				service.TotalRx += clientTunnel.TCPRx + clientTunnel.UDPRx
 				service.TotalTx += clientTunnel.TCPTx + clientTunnel.UDPTx
 			}
@@ -647,7 +647,7 @@ func (s *ServiceImpl) syncServiceFromTunnel(sid, serviceType, instanceID string,
 			service.TotalTx = tunnel.TCPTx + tunnel.UDPTx
 			// 查询 server 端流量
 			var serverTunnel models.Tunnel
-			if err := s.db.Where("peer->>'$.sid' = ? AND peer->>'$.type' = ? AND type = ?", sid, serviceType, models.TunnelModeServer).First(&serverTunnel).Error; err == nil {
+			if err := s.db.Where("peer->>'sid' = ? AND peer->>'type' = ? AND type = ?", sid, serviceType, models.TunnelModeServer).First(&serverTunnel).Error; err == nil {
 				service.TotalRx += serverTunnel.TCPRx + serverTunnel.UDPRx
 				service.TotalTx += serverTunnel.TCPTx + serverTunnel.UDPTx
 			}

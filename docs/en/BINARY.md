@@ -5,7 +5,8 @@ This guide deploys NodePassDash as a native binary on a server (recommended for 
 ## Requirements
 
 - Linux x86_64 / arm64 (other platforms may be available in Releases)
-- A working directory to persist `db/` and `logs/`
+- PostgreSQL 14+ (local or remote)
+- A working directory to persist `logs/`
 
 ## Option A: Install Script (Recommended)
 
@@ -27,11 +28,11 @@ chmod +x install.sh
 
 1) Download the archive from GitHub Releases and extract it.
 2) Put the `nodepassdash` binary in a directory, for example: `/opt/nodepassdash/bin/nodepassdash`.
-3) Run from the working directory so `db/` and `logs/` are created next to it:
+3) Run from the working directory and provide PostgreSQL connection settings:
 
 ```bash
 cd /opt/nodepassdash
-./bin/nodepassdash --port 3000
+DATABASE_URL='postgres://postgres:postgres@127.0.0.1:5432/nodepassdash?sslmode=disable' ./bin/nodepassdash --port 3000
 ```
 
 ## Systemd Example

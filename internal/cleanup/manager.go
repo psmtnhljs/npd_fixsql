@@ -246,14 +246,14 @@ func (m *Manager) ExecuteDeepCleanup() error {
 
 	startTime := time.Now()
 
-	// 1. 执行 VACUUM 操作（SQLite）
-	if err := m.db.Exec("VACUUM").Error; err != nil {
-		log.Errorf("执行 VACUUM 失败: %v", err)
+	// 1. 执行 VACUUM ANALYZE（PostgreSQL）
+	if err := m.db.Exec("VACUUM ANALYZE").Error; err != nil {
+		log.Errorf("执行 VACUUM ANALYZE 失败: %v", err)
 	} else {
-		log.Info("✓ 数据库 VACUUM 完成")
+		log.Info("✓ 数据库 VACUUM ANALYZE 完成")
 	}
 
-	// 2. 重新分析统计信息（SQLite）
+	// 2. 重新分析统计信息
 	if err := m.db.Exec("ANALYZE").Error; err != nil {
 		log.Errorf("执行 ANALYZE 失败: %v", err)
 	} else {

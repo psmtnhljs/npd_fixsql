@@ -5,7 +5,8 @@
 ## 环境要求
 
 - Linux x86_64 / arm64（其他平台以 Releases 为准）
-- 用于持久化的工作目录（会生成 `db/` 与 `logs/`）
+- PostgreSQL 14+（本机或远程均可）
+- 用于持久化 `logs/` 的工作目录
 
 ## 方式一：一键安装脚本（推荐）
 
@@ -27,11 +28,11 @@ chmod +x install.sh
 
 1）从 GitHub Releases 下载对应平台压缩包并解压  
 2）将 `nodepassdash` 放到例如 `/opt/nodepassdash/bin/nodepassdash`  
-3）在工作目录中启动（便于 `db/`、`logs/` 落在同级目录）：
+3）在工作目录中启动，并提供 PostgreSQL 连接参数：
 
 ```bash
 cd /opt/nodepassdash
-./bin/nodepassdash --port 3000
+DATABASE_URL='postgres://postgres:postgres@127.0.0.1:5432/nodepassdash?sslmode=disable' ./bin/nodepassdash --port 3000
 ```
 
 ## systemd 示例

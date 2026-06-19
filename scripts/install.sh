@@ -31,14 +31,6 @@ CERT_PATH=""
 KEY_PATH=""
 VERSION_TYPE="stable"  # stable 或 beta
 
-# PostgreSQL 数据库配置（NodePassDash 现在需要 PostgreSQL）
-DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5432}"
-DB_USER="${DB_USER:-nodepassdash}"
-DB_PASSWORD="${DB_PASSWORD:-nodepassdash}"
-DB_NAME="${DB_NAME:-nodepassdash}"
-DB_SSLMODE="${DB_SSLMODE:-disable}"
-
 # GitHub 仓库信息
 GITHUB_REPO="NodePassProject/NodePassDash"
 GITHUB_API="https://api.github.com/repos/${GITHUB_REPO}"
@@ -78,11 +70,6 @@ show_help() {
     echo "  --cert PATH           HTTPS 证书文件路径"
     echo "  --key PATH            HTTPS 私钥文件路径"
     echo "  --beta                安装 Beta 版本"
-    echo "  --db-host HOST        PostgreSQL 主机 (默认: localhost)"
-    echo "  --db-port PORT        PostgreSQL 端口 (默认: 5432)"
-    echo "  --db-user USER        PostgreSQL 用户名 (默认: nodepassdash)"
-    echo "  --db-password PASS    PostgreSQL 密码 (默认: nodepassdash)"
-    echo "  --db-name NAME        PostgreSQL 数据库名 (默认: nodepassdash)"
     echo "  --non-interactive     非交互式安装"
     echo "  --help                显示此帮助信息"
     echo
@@ -133,26 +120,6 @@ parse_args() {
             --beta)
                 VERSION_TYPE="beta"
                 shift
-                ;;
-            --db-host)
-                DB_HOST="$2"
-                shift 2
-                ;;
-            --db-port)
-                DB_PORT="$2"
-                shift 2
-                ;;
-            --db-user)
-                DB_USER="$2"
-                shift 2
-                ;;
-            --db-password)
-                DB_PASSWORD="$2"
-                shift 2
-                ;;
-            --db-name)
-                DB_NAME="$2"
-                shift 2
                 ;;
             --non-interactive)
                 non_interactive=true
@@ -229,40 +196,6 @@ interactive_config() {
         KEY_PATH="$key_path"
     fi
 
-    # PostgreSQL 数据库配置
-    echo
-    echo "--- PostgreSQL 数据库配置 ---"
-    echo "NodePassDash 需要 PostgreSQL 数据库。"
-    echo -n "数据库主机 [默认: $DB_HOST]: "
-    read input_db_host
-    if [[ -n "$input_db_host" ]]; then
-        DB_HOST="$input_db_host"
-    fi
-
-    echo -n "数据库端口 [默认: $DB_PORT]: "
-    read input_db_port
-    if [[ -n "$input_db_port" ]]; then
-        DB_PORT="$input_db_port"
-    fi
-
-    echo -n "数据库用户名 [默认: $DB_USER]: "
-    read input_db_user
-    if [[ -n "$input_db_user" ]]; then
-        DB_USER="$input_db_user"
-    fi
-
-    echo -n "数据库密码 [默认: $DB_PASSWORD]: "
-    read input_db_password
-    if [[ -n "$input_db_password" ]]; then
-        DB_PASSWORD="$input_db_password"
-    fi
-
-    echo -n "数据库名称 [默认: $DB_NAME]: "
-    read input_db_name
-    if [[ -n "$input_db_name" ]]; then
-        DB_NAME="$input_db_name"
-    fi
-
     echo
     echo "配置总结:"
     echo "  版本类型: $VERSION_TYPE"
@@ -272,7 +205,6 @@ interactive_config() {
         echo "  证书: $CERT_PATH"
         echo "  私钥: $KEY_PATH"
     fi
-    echo "  数据库: PostgreSQL ($DB_HOST:$DB_PORT/$DB_NAME)"
     echo
     echo -n "确认配置并继续安装? [Y/n]: "
     read confirm
@@ -550,11 +482,11 @@ setup_user_and_dirs() {
     fi
     
     # 创建目录结构
-    mkdir -p "$INSTALL_DIR"/{bin,logs,backups}
+    mkdir -p "$INSTALL_DIR"/{bin,db,logs,backups}
 
     # 设置权限
     chown -R root:root "$INSTALL_DIR/bin" 2>/dev/null || true
-    chown -R "$USER_NAME:$USER_NAME" "$INSTALL_DIR"/{logs,backups}
+    chown -R "$USER_NAME:$USER_NAME" "$INSTALL_DIR"/{db,logs,backups}
     # nodepassdash 需要在工作目录创建数据库文件，确保有写权限
     chown "$USER_NAME:$USER_NAME" "$INSTALL_DIR"
     
@@ -599,16 +531,16 @@ VERSION_TYPE=$VERSION_TYPE
 # 服务端口
 PORT=$USER_PORT
 
-# PostgreSQL 数据库配置（必须）
-# 请确保 PostgreSQL 已安装并运行，且已创建对应的数据库和用户
-# 示例: CREATE USER nodepassdash WITH PASSWORD 'your_password';
-#       CREATE DATABASE nodepassdash OWNER nodepassdash;
-DB_HOST=$DB_HOST
-DB_PORT=$DB_PORT
-DB_USER=$DB_USER
-DB_PASSWORD=$DB_PASSWORD
-DB_NAME=$DB_NAME
-DB_SSLMODE=$DB_SSLMODE
+# 数据库配置（PostgreSQL）
+# 优先使用 DATABASE_URL；如留空，则使用下方拆分变量
+DATABASE_URL=
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=
+DB_NAME=nodepassdash
+DB_SSLMODE=disable
+DB_TIMEZONE=Asia/Shanghai
 
 # HTTPS 配置
 ENABLE_HTTPS=$ENABLE_HTTPS
@@ -668,7 +600,7 @@ create_systemd_service() {
 [Unit]
 Description=NodePassDash - NodePass Management Dashboard
 Documentation=https://github.com/NodePassProject/NodePassDash
-After=network.target postgresql.service
+After=network.target
 Wants=network-online.target
 
 [Service]
@@ -679,17 +611,8 @@ WorkingDirectory=$INSTALL_DIR
 ExecStart=$exec_start
 ExecReload=/bin/kill -HUP \$MAINPID
 
-# 环境变量（包含 PostgreSQL 数据库配置）
+# 环境变量
 EnvironmentFile=-$INSTALL_DIR/config.env
-
-# PostgreSQL 数据库连接配置
-# 确保 PostgreSQL 服务已启动且可连接
-Environment=DB_HOST=$DB_HOST
-Environment=DB_PORT=$DB_PORT
-Environment=DB_USER=$DB_USER
-Environment=DB_PASSWORD=$DB_PASSWORD
-Environment=DB_NAME=$DB_NAME
-Environment=DB_SSLMODE=$DB_SSLMODE
 
 # 日志输出
 StandardOutput=journal
@@ -1008,6 +931,7 @@ show_result() {
     echo
     echo "📁 重要路径:"
     echo "   程序目录: $INSTALL_DIR"
+    echo "   数据目录: $INSTALL_DIR/db"
     echo "   日志目录: $INSTALL_DIR/logs"
     echo "   配置文件: $INSTALL_DIR/config.env"
     if [[ "$ENABLE_HTTPS" == "true" ]]; then
@@ -1022,7 +946,6 @@ show_result() {
         echo "   证书: $INSTALL_DIR/certs/server.crt"
         echo "   私钥: $INSTALL_DIR/certs/server.key"
     fi
-    echo "   数据库: PostgreSQL ($DB_HOST:$DB_PORT/$DB_NAME)"
     echo
     echo "🔑 初始密码:"
     echo "   系统将在首次运行时自动生成管理员账户"
@@ -1075,13 +998,13 @@ main_uninstall() {
     fi
     
     # 备份数据（可选）
-    if [[ -d "$INSTALL_DIR/logs" ]] && [[ -n "$(ls -A $INSTALL_DIR/logs 2>/dev/null)" ]]; then
-        echo -n "是否备份日志到 /tmp/nodepassdash-backup-$(date +%Y%m%d%H%M%S).tar.gz？[Y/n]: "
+    if [[ -d "$INSTALL_DIR/db" ]] && [[ -n "$(ls -A $INSTALL_DIR/db 2>/dev/null)" ]]; then
+        echo -n "是否备份数据到 /tmp/nodepassdash-backup-$(date +%Y%m%d%H%M%S).tar.gz？[Y/n]: "
         read backup_confirm
         if [[ ! "$backup_confirm" =~ ^[Nn]$ ]]; then
             local backup_file="/tmp/nodepassdash-backup-$(date +%Y%m%d%H%M%S).tar.gz"
             log_info "备份数据到 $backup_file..."
-            tar -czf "$backup_file" -C "$INSTALL_DIR" logs config.env 2>/dev/null || true
+            tar -czf "$backup_file" -C "$INSTALL_DIR" db logs config.env 2>/dev/null || true
             log_success "数据已备份到 $backup_file"
         fi
     fi

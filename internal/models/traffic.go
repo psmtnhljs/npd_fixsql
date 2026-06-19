@@ -5,9 +5,9 @@ import "time"
 // TrafficHourlySummary 流量小时汇总表
 type TrafficHourlySummary struct {
 	ID             int64     `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	HourTime       time.Time `json:"hourTime" gorm:"not null;uniqueIndex:idx_hour_instance;column:hour_time"`
-	InstanceID     string    `json:"instanceId" gorm:"type:text;not null;uniqueIndex:idx_hour_instance;column:instance_id"`
-	EndpointID     int64     `json:"endpointId" gorm:"column:endpoint_id"`
+	HourTime       time.Time `json:"hourTime" gorm:"index:idx_traffic_hour_time;uniqueIndex:idx_traffic_hourly_summary_unique;column:hour_time"`
+	InstanceID     string    `json:"instanceId" gorm:"type:text;uniqueIndex:idx_traffic_hourly_summary_unique;column:instance_id"`
+	EndpointID     int64     `json:"endpointId" gorm:"uniqueIndex:idx_traffic_hourly_summary_unique;column:endpoint_id"`
 	TCPRxTotal     int64     `json:"tcpRxTotal" gorm:"default:0;column:tcp_rx_total"`
 	TCPTxTotal     int64     `json:"tcpTxTotal" gorm:"default:0;column:tcp_tx_total"`
 	UDPRxTotal     int64     `json:"udpRxTotal" gorm:"default:0;column:udp_rx_total"`
@@ -60,7 +60,7 @@ func (t *TrafficHourlySummary) GetUDPIncrement() int64 {
 // 用于存储按小时汇总的所有实例流量累计值总和
 type DashboardTrafficSummary struct {
 	ID            int64     `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	HourTime      time.Time `json:"hourTime" gorm:"not null;unique;index:idx_dashboard_traffic_hour_time;column:hour_time"`
+	HourTime      time.Time `json:"hourTime" gorm:"not null;uniqueIndex;index:idx_dashboard_traffic_hour_time;column:hour_time"`
 	TCPRxTotal    int64     `json:"tcpRxTotal" gorm:"default:0;column:tcp_rx_total"`      // 所有实例TCP接收累计值总和
 	TCPTxTotal    int64     `json:"tcpTxTotal" gorm:"default:0;column:tcp_tx_total"`      // 所有实例TCP发送累计值总和
 	UDPRxTotal    int64     `json:"udpRxTotal" gorm:"default:0;column:udp_rx_total"`      // 所有实例UDP接收累计值总和

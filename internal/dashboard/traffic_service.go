@@ -36,7 +36,7 @@ func (s *TrafficService) AggregateTrafficDataForHour(hourStart time.Time) error 
 
 	// 使用事务来确保数据一致性
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		// 1. 使用UPSERT语法（INSERT ... ON CONFLICT）来处理更新
+		// 1. 使用 PostgreSQL UPSERT 语法来处理更新
 		if err := tx.Exec(`
 			INSERT INTO traffic_hourly_summary (
 				hour_time,
@@ -67,8 +67,8 @@ func (s *TrafficService) AggregateTrafficDataForHour(hourStart time.Time) error 
 				sh.delta_udp_in as udp_rx_increment,
 				sh.delta_udp_out as udp_tx_increment,
 				1 as record_count,
-				NOW(),
-				NOW()
+				CURRENT_TIMESTAMP,
+				CURRENT_TIMESTAMP
 			FROM service_history sh
 			INNER JOIN (
 				SELECT 
@@ -82,7 +82,7 @@ func (s *TrafficService) AggregateTrafficDataForHour(hourStart time.Time) error 
 				AND sh.instance_id = latest.instance_id 
 				AND sh.record_time = latest.max_record_time
 			WHERE sh.record_time <= ?
-			ON CONFLICT (hour_time, instance_id) DO UPDATE SET
+			ON CONFLICT (hour_time, instance_id, endpoint_id) DO UPDATE SET
 				tcp_rx_total = EXCLUDED.tcp_rx_total,
 				tcp_tx_total = EXCLUDED.tcp_tx_total,
 				udp_rx_total = EXCLUDED.udp_rx_total,
@@ -92,7 +92,7 @@ func (s *TrafficService) AggregateTrafficDataForHour(hourStart time.Time) error 
 				udp_rx_increment = EXCLUDED.udp_rx_increment,
 				udp_tx_increment = EXCLUDED.udp_tx_increment,
 				record_count = EXCLUDED.record_count,
-				updated_at = NOW()`,
+				updated_at = CURRENT_TIMESTAMP`,
 			hourStart, targetTime, targetTime).Error; err != nil {
 			return fmt.Errorf("插入汇总数据失败: %v", err)
 		}
@@ -152,7 +152,7 @@ func (s *TrafficService) calculateIncrements(tx *gorm.DB, hourStart time.Time) e
 func (s *TrafficService) aggregateDashboardTraffic(tx *gorm.DB, hourStart time.Time) error {
 	// 使用UPSERT语法来处理更新
 	if err := tx.Exec(`
-		INSERT INTO dashboard_traffic_summary (
+	INSERT INTO dashboard_traffic_summary (
 			hour_time,
 			tcp_rx_total,
 			tcp_tx_total,
@@ -169,8 +169,8 @@ func (s *TrafficService) aggregateDashboardTraffic(tx *gorm.DB, hourStart time.T
 			CAST(SUM(udp_rx_total) AS INTEGER) as udp_rx_total,
 			CAST(SUM(udp_tx_total) AS INTEGER) as udp_tx_total,
 			COUNT(*) as instance_count,
-			NOW(),
-			NOW()
+			CURRENT_TIMESTAMP,
+			CURRENT_TIMESTAMP
 		FROM traffic_hourly_summary
 		WHERE hour_time = ?
 		ON CONFLICT (hour_time) DO UPDATE SET
@@ -179,7 +179,7 @@ func (s *TrafficService) aggregateDashboardTraffic(tx *gorm.DB, hourStart time.T
 			udp_rx_total = EXCLUDED.udp_rx_total,
 			udp_tx_total = EXCLUDED.udp_tx_total,
 			instance_count = EXCLUDED.instance_count,
-			updated_at = NOW()`,
+			updated_at = CURRENT_TIMESTAMP`,
 		hourStart, hourStart).Error; err != nil {
 		return fmt.Errorf("插入dashboard汇总数据失败: %v", err)
 	}
@@ -208,7 +208,7 @@ func (s *TrafficService) initializeTrafficDataForHour(hourStart time.Time) error
 	targetTime := hourStart.Add(59 * time.Minute)
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		// 使用UPSERT语法（INSERT ... ON CONFLICT）来处理更新
+		// 使用 PostgreSQL UPSERT 语法来处理更新
 		if err := tx.Exec(`
 			INSERT INTO traffic_hourly_summary (
 				hour_time,
@@ -239,8 +239,8 @@ func (s *TrafficService) initializeTrafficDataForHour(hourStart time.Time) error
 				sh.delta_udp_in as udp_rx_increment,
 				sh.delta_udp_out as udp_tx_increment,
 				1 as record_count,
-				NOW(),
-				NOW()
+				CURRENT_TIMESTAMP,
+				CURRENT_TIMESTAMP
 			FROM service_history sh
 			INNER JOIN (
 				SELECT 
@@ -254,7 +254,7 @@ func (s *TrafficService) initializeTrafficDataForHour(hourStart time.Time) error
 				AND sh.instance_id = latest.instance_id 
 				AND sh.record_time = latest.max_record_time
 			WHERE sh.record_time <= ?
-			ON CONFLICT (hour_time, instance_id) DO UPDATE SET
+			ON CONFLICT (hour_time, instance_id, endpoint_id) DO UPDATE SET
 				tcp_rx_total = EXCLUDED.tcp_rx_total,
 				tcp_tx_total = EXCLUDED.tcp_tx_total,
 				udp_rx_total = EXCLUDED.udp_rx_total,
@@ -264,7 +264,7 @@ func (s *TrafficService) initializeTrafficDataForHour(hourStart time.Time) error
 				udp_rx_increment = EXCLUDED.udp_rx_increment,
 				udp_tx_increment = EXCLUDED.udp_tx_increment,
 				record_count = EXCLUDED.record_count,
-				updated_at = NOW()`,
+				updated_at = CURRENT_TIMESTAMP`,
 			hourStart, targetTime, targetTime).Error; err != nil {
 			return fmt.Errorf("初始化汇总数据失败: %v", err)
 		}
@@ -287,7 +287,7 @@ func (s *TrafficService) initializeTrafficDataForHour(hourStart time.Time) error
 func (s *TrafficService) initializeDashboardTraffic(tx *gorm.DB, hourStart time.Time) error {
 	// 使用UPSERT语法来处理更新
 	if err := tx.Exec(`
-		INSERT INTO dashboard_traffic_summary (
+	INSERT INTO dashboard_traffic_summary (
 			hour_time,
 			tcp_rx_total,
 			tcp_tx_total,
@@ -304,8 +304,8 @@ func (s *TrafficService) initializeDashboardTraffic(tx *gorm.DB, hourStart time.
 			CAST(SUM(udp_rx_total) AS INTEGER) as udp_rx_total,
 			CAST(SUM(udp_tx_total) AS INTEGER) as udp_tx_total,
 			COUNT(*) as instance_count,
-			NOW(),
-			NOW()
+			CURRENT_TIMESTAMP,
+			CURRENT_TIMESTAMP
 		FROM traffic_hourly_summary
 		WHERE hour_time = ?
 		ON CONFLICT (hour_time) DO UPDATE SET
@@ -314,7 +314,7 @@ func (s *TrafficService) initializeDashboardTraffic(tx *gorm.DB, hourStart time.
 			udp_rx_total = EXCLUDED.udp_rx_total,
 			udp_tx_total = EXCLUDED.udp_tx_total,
 			instance_count = EXCLUDED.instance_count,
-			updated_at = NOW()`,
+			updated_at = CURRENT_TIMESTAMP`,
 		hourStart, hourStart).Error; err != nil {
 		return fmt.Errorf("初始化dashboard汇总数据失败: %v", err)
 	}
@@ -328,9 +328,9 @@ func (s *TrafficService) CleanOldTrafficData() error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		// 清理30天前的原始数据
 		if err := tx.Exec(`
-			DELETE FROM endpoint_sse_events 
+			DELETE FROM endpoint_sse 
 			WHERE event_time < NOW() - INTERVAL '30 days'
-			AND event_type IN ('initial', 'update')
+			AND push_type IN ('initial', 'update')
 		`).Error; err != nil {
 			return fmt.Errorf("清理原始流量数据失败: %v", err)
 		}

@@ -4,7 +4,6 @@ import (
 	"NodePassDash/internal/models"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -357,66 +356,32 @@ func (s *Service) getTrafficTrendWithSQL(hours int) ([]TrafficTrendItem, error) 
 		UDPTx      int64     `json:"udp_tx"`
 	}
 
-	// 检查MySQL版本，尝试使用窗口函数
-	var version string
-	s.db.Raw("SELECT VERSION()").Scan(&version)
-
-	// MySQL 8.0+ 支持窗口函数
-	if strings.Contains(version, "8.") || strings.Contains(version, "9.") {
-		sqlQuery := `
-			SELECT instance_id, hour_key, event_time, tcp_rx, tcp_tx, udp_rx, udp_tx
-			FROM (
-				SELECT 
-					instance_id,
-					DATE_FORMAT(event_time, '%Y-%m-%d %H:00:00') as hour_key,
-					event_time,
-					tcp_rx, tcp_tx, udp_rx, udp_tx,
-					ROW_NUMBER() OVER (
-						PARTITION BY instance_id, DATE_FORMAT(event_time, '%Y-%m-%d %H:00:00') 
-						ORDER BY event_time DESC
-					) as rn
-				FROM endpoint_sse
-				WHERE push_type IN ('initial','update')
-				AND event_time >= DATE_SUB(NOW(), INTERVAL ? HOUR)
-				AND (tcp_rx > 0 OR tcp_tx > 0 OR udp_rx > 0 OR udp_tx > 0)
-			) as hourly_latest
-			WHERE rn = 1
-			ORDER BY instance_id, hour_key ASC
-		`
-
-		err := s.db.Raw(sqlQuery, hours+1).Scan(&records).Error
-		if err == nil {
-			return s.processTrafficRecords(records, hours)
-		}
-		// 如果窗口函数失败，继续使用备用方案
-	}
-
-	// 备用方案：使用GROUP BY + MAX，兼容MySQL 5.7及以下
+	cutoff := time.Now().Add(-time.Duration(hours+1) * time.Hour)
 	sqlQuery := `
 		SELECT 
 			t1.instance_id,
-			DATE_FORMAT(t1.event_time, '%Y-%m-%d %H:00:00') as hour_key,
+			TO_CHAR(DATE_TRUNC('hour', t1.event_time), 'YYYY-MM-DD HH24:00:00') as hour_key,
 			t1.event_time,
 			t1.tcp_rx, t1.tcp_tx, t1.udp_rx, t1.udp_tx
 		FROM endpoint_sse t1
 		INNER JOIN (
 			SELECT 
 				instance_id,
-				DATE_FORMAT(event_time, '%Y-%m-%d %H:00:00') as hour_key,
+				DATE_TRUNC('hour', event_time) as hour_bucket,
 				MAX(event_time) as max_time
 			FROM endpoint_sse
 			WHERE push_type IN ('initial','update')
-			AND event_time >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+			AND event_time >= ?
 			AND (tcp_rx > 0 OR tcp_tx > 0 OR udp_rx > 0 OR udp_tx > 0)
-			GROUP BY instance_id, DATE_FORMAT(event_time, '%Y-%m-%d %H:00:00')
+			GROUP BY instance_id, DATE_TRUNC('hour', event_time)
 		) t2 ON t1.instance_id = t2.instance_id 
 			AND t1.event_time = t2.max_time
-			AND DATE_FORMAT(t1.event_time, '%Y-%m-%d %H:00:00') = t2.hour_key
+			AND DATE_TRUNC('hour', t1.event_time) = t2.hour_bucket
 		WHERE t1.push_type IN ('initial','update')
 		ORDER BY t1.instance_id, hour_key ASC
 	`
 
-	err := s.db.Raw(sqlQuery, hours+1).Scan(&records).Error
+	err := s.db.Raw(sqlQuery, cutoff).Scan(&records).Error
 	if err != nil {
 		return nil, fmt.Errorf("查询流量数据失败: %v", err)
 	}
@@ -591,10 +556,10 @@ func (s *Service) GetWeeklyStats() ([]WeeklyStatsItem, error) {
 			FROM dashboard_traffic_summary
 			WHERE hour_time >= ? AND hour_time < ?
 		`, currentDay, currentDay.AddDate(0, 0, -1),
-		   currentDay, currentDay.AddDate(0, 0, -1),
-		   currentDay, currentDay.AddDate(0, 0, -1),
-		   currentDay, currentDay.AddDate(0, 0, -1),
-		   startOfWeek, endOfWeek).Scan(&dayStats).Error
+			currentDay, currentDay.AddDate(0, 0, -1),
+			currentDay, currentDay.AddDate(0, 0, -1),
+			currentDay, currentDay.AddDate(0, 0, -1),
+			startOfWeek, endOfWeek).Scan(&dayStats).Error
 
 		if err != nil {
 			// 如果查询失败，使用简化的查询方式

@@ -29,7 +29,7 @@ func (s *RealtimeDataCleanupStrategy) Execute(ctx context.Context, db *gorm.DB, 
 	startTime := time.Now()
 	result := &CleanupResult{
 		StrategyName:   s.Name(),
-		TablesAffected: []string{"endpoint_sse_events", "tunnel_status_history"},
+		TablesAffected: []string{"endpoint_sse", "tunnel_status_history"},
 	}
 
 	cutoff := config.GetRealtimeDataCutoff()
@@ -39,7 +39,7 @@ func (s *RealtimeDataCleanupStrategy) Execute(ctx context.Context, db *gorm.DB, 
 
 	// 清理过期的 SSE 事件记录（如果有这样的表）
 	// 注意：根据实际表结构调整
-	if db.Migrator().HasTable("endpoint_sse_events") {
+	if db.Migrator().HasTable("endpoint_sse") {
 		var deleted int64
 		err := db.Unscoped().Where("created_at < ?", cutoff).Delete(&models.EndpointSSE{}).Error
 		if err != nil {
@@ -404,7 +404,7 @@ func (s *DeletedEndpointsCleanupStrategy) Execute(ctx context.Context, db *gorm.
 			if err != nil {
 				log.Errorf("删除端点 %d 的隧道操作日志失败: %v", endpoint.ID, err)
 			}
-			
+
 			// 然后删除该端点的所有隧道
 			err = db.Unscoped().Where("endpoint_id = ?", endpoint.ID).Delete(&models.Tunnel{}).Error
 			if err != nil {
