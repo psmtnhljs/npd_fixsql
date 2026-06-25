@@ -2,6 +2,16 @@
 
 set -euo pipefail
 
+log() {
+  echo "[deploy] $*"
+}
+
+fail() {
+  echo "[deploy] ERROR: $*" >&2
+}
+
+trap 'fail "Deployment failed at line $LINENO"' ERR
+
 REPO_URL="${REPO_URL:-https://github.com/psmtnhljs/npd_fixsql.git}"
 BRANCH="${BRANCH:-main}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/npd_fixsql}"
@@ -14,14 +24,12 @@ DB_TIMEZONE="${DB_TIMEZONE:-Asia/Shanghai}"
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
 
 if [[ -z "${POSTGRES_PASSWORD}" ]]; then
-  POSTGRES_PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)"
+  log "Generating PostgreSQL password"
+  POSTGRES_PASSWORD="$(tr -d '-' </proc/sys/kernel/random/uuid | cut -c1-24)"
 fi
 
-log() {
-  echo "[deploy] $*"
-}
-
 install_base_packages() {
+  log "Installing base packages"
   if command -v apt-get >/dev/null 2>&1; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update
@@ -49,6 +57,7 @@ install_docker_if_missing() {
 }
 
 ensure_compose() {
+  log "Checking Docker Compose plugin"
   if docker compose version >/dev/null 2>&1; then
     return
   fi
@@ -57,6 +66,7 @@ ensure_compose() {
 }
 
 prepare_repo() {
+  log "Preparing repository in $INSTALL_DIR"
   mkdir -p "$(dirname "$INSTALL_DIR")"
   if [[ -d "$INSTALL_DIR/.git" ]]; then
     log "Updating existing repository"
@@ -70,6 +80,7 @@ prepare_repo() {
 }
 
 write_env_file() {
+  log "Writing environment file"
   cat > "$INSTALL_DIR/.env" <<EOF
 APP_PORT=${APP_PORT}
 POSTGRES_DB=${POSTGRES_DB}
@@ -82,6 +93,7 @@ EOF
 }
 
 start_stack() {
+  log "Starting application stack"
   mkdir -p "$INSTALL_DIR/logs"
   docker compose -f "$INSTALL_DIR/docker-compose.cloud.yml" --env-file "$INSTALL_DIR/.env" up -d --build
 }
@@ -104,6 +116,7 @@ main() {
     exit 1
   fi
 
+  log "Starting deployment"
   install_base_packages
   install_docker_if_missing
   ensure_compose
