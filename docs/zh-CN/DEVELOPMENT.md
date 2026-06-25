@@ -4,7 +4,7 @@
 
 - Node.js 20+
 - pnpm 8+
-- Go 1.23+
+- Go 1.25+
 - PostgreSQL 14+
 
 ## 数据库配置
