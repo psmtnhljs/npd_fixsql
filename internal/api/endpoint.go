@@ -958,7 +958,15 @@ func (h *EndpointHandler) HandleGetEndpointDetail(c *gin.Context) {
 			} else {
 				// 在日志中显示uptime信息
 				uptimeMsg := fmt.Sprintf("%d秒", info.Uptime)
-				log.Infof("[Master-%v] 详情页刷新：系统信息已更新: OS=%s, Arch=%s, Ver=%s, Uptime=%s", ep.ID, info.OS, info.Arch, info.Ver, uptimeMsg)
+				log.Infof("[Master-%v] 详情页刷新：系统信息已更新: OS=%s, Arch=%s, Ver=%s, Uptime=%s", ep.ID, info.OS, ep.Arch, info.Ver, uptimeMsg)
+			}
+			// NodePass API连通时，同步更新端点状态为ONLINE
+			if ep.Status != "ONLINE" {
+				if statusErr := h.endpointService.UpdateEndpointStatus(id, "ONLINE"); statusErr != nil {
+					log.Errorf("[Master-%v] 更新端点状态为ONLINE失败: %v", ep.ID, statusErr)
+				} else {
+					log.Infof("[Master-%v] 详情页刷新：端点状态已更新为ONLINE", ep.ID)
+				}
 			}
 		}
 	}()
