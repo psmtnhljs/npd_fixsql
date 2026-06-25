@@ -172,6 +172,18 @@ cat backup.sql | docker compose -f docker-compose.cloud.yml exec -T postgres \
   psql -U "$POSTGRES_USER" "$POSTGRES_DB"
 ```
 
+### Del PostgreSQL && Reinstall
+```
+# stop docker
+docker compose -f /opt/npd_fixsql/docker-compose.cloud.yml --env-file /opt/npd_fixsql/.env down
+
+# Del docker
+docker volume rm npd_fixsql_postgres-data
+
+# Restart
+docker compose -f /opt/npd_fixsql/docker-compose.cloud.yml --env-file /opt/npd_fixsql/.env up -d
+```
+
 ## Notes
 
 - This fork is PostgreSQL-only at runtime
