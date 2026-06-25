@@ -2,10 +2,10 @@
 # Next.js应用内置SSE服务，单端口运行
 
 # ========= 前端构建阶段 =========
-FROM node:20-alpine AS frontend-builder
+FROM node:22.13-alpine AS frontend-builder
 
 # 使用 corepack 预装 pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@11.8.0 --activate
 
 # 设置 pnpm 环境变量，避免交互式提示
 ENV PNPM_HOME="/pnpm"
@@ -20,7 +20,7 @@ COPY web/ ./web/
 # 进入 web 目录，清理并安装依赖，然后构建
 RUN cd web && \
     rm -rf node_modules && \
-    pnpm install --frozen-lockfile --prod=false --ignore-scripts && \
+    pnpm install --frozen-lockfile --prod=false && \
     pnpm build && \
     pnpm prune --prod
 
