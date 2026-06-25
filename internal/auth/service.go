@@ -61,7 +61,7 @@ func (s *Service) GetSystemConfig(key string) (string, error) {
 
 	// 使用GORM查询数据库
 	var config models.SystemConfig
-	err := s.db.Where("`key` = ?", key).First(&config).Error
+	err := s.db.Where(`"key" = ?`, key).First(&config).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", errors.New("配置不存在")
@@ -83,7 +83,7 @@ func (s *Service) SetSystemConfig(key, value string) error {
 	}
 
 	// 先尝试更新，如果不存在则创建
-	result := s.db.Where("`key` = ?", key).Updates(&config)
+	result := s.db.Where(`"key" = ?`, key).Updates(&config)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -113,7 +113,7 @@ func (s *Service) GetSystemConfigWithDefault(key, defaultValue string) string {
 // DeleteSystemConfig 删除系统配置
 func (s *Service) DeleteSystemConfig(key string) error {
 	// 使用GORM删除
-	err := s.db.Where("`key` = ?", key).Delete(&models.SystemConfig{}).Error
+	err := s.db.Where(`"key" = ?`, key).Delete(&models.SystemConfig{}).Error
 	if err != nil {
 		return err
 	}
