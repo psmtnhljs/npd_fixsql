@@ -3,11 +3,13 @@ package nodepass
 import (
 	"crypto/tls"
 	"fmt"
+	"net/http"
 	"time"
 
 	"NodePassDash/internal/models"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/mattn/go-ieproxy"
 )
 
 // 创建 Resty 客户端，配置禁用代理和证书校验
@@ -16,9 +18,10 @@ func createRestyClient() *resty.Client {
 		SetTimeout(15 * time.Second).
 		SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 
-	// 明确禁用所有代理设置
-	client.SetProxy("")
-	client.RemoveProxy()
+	// 使用系统/环境代理，与SSE保持一致
+	client.SetTransport(&http.Transport{
+		Proxy: ieproxy.GetProxyFunc(),
+	})
 
 	return client
 }
