@@ -4,8 +4,8 @@
 # ========= 前端构建阶段 =========
 FROM node:22.13-alpine AS frontend-builder
 
-# 使用 corepack 预装 pnpm
-RUN corepack enable && corepack prepare pnpm@11.8.0 --activate
+# 直接安装固定版本 pnpm，避免 corepack 签名校验问题
+RUN npm install -g pnpm@11.8.0
 
 # 设置 pnpm 环境变量，避免交互式提示
 ENV PNPM_HOME="/pnpm"
