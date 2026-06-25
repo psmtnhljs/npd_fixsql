@@ -478,9 +478,3 @@ func (s *Service) UpdateEndpointInfo(id int64, info nodepass.EndpointInfoResult)
 
 	return s.db.Model(&models.Endpoint{}).Where("id = ?", id).Updates(updates).Error
 }
-
-// UpdateEndpointStatus 更新端点状态
-func (s *Service) UpdateEndpointStatus(id int64, status string) error {
-	return s.db.Model(&models.Endpoint{}).Where("id = ?", id).Update("status", status).Error
-}
-

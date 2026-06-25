@@ -358,11 +358,7 @@ export default function EndpointsPage() {
 
   // 应用启动时执行主控列表获取
   useEffect(() => {
-    // 每30秒轮询一次端点状态
-    const pollTimer = setInterval(() => {
-      fetchEndpoints();
-    }, 30_000);
-    return () => clearInterval(pollTimer);
+    fetchEndpoints();
   }, [fetchEndpoints]);
 
   // 格式化URL显示（处理脱敏逻辑）
