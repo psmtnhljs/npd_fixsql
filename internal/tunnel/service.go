@@ -37,6 +37,18 @@ func NewService(db *gorm.DB) *Service {
 	return &Service{db: db}
 }
 
+func buildPostgresPlaceholders(count int) string {
+	if count <= 0 {
+		return ""
+	}
+
+	placeholders := make([]string, count)
+	for index := range placeholders {
+		placeholders[index] = fmt.Sprintf("$%d", index+1)
+	}
+	return strings.Join(placeholders, ",")
+}
+
 // GetTunnels 获取所有隧道列表 (GORM版本)
 func (s *Service) GetTunnels() ([]TunnelWithStats, error) {
 	// 临时解决方案：使用原生SQL查询直到完全迁移完成
@@ -2495,10 +2507,7 @@ func (s *Service) updateEndpointTunnelCount(endpointID int64) {
 
 // GetTunnelsWithPagination 获取带分页和筛选的隧道列表（优化版本）
 func (s *Service) GetTunnelsWithPagination(params TunnelQueryParams) (*TunnelListResult, error) {
-	sqlDB, err := s.db.DB()
-	if err != nil {
-		return nil, fmt.Errorf("获取数据库连接失败: %v", err)
-	}
+	sqlDB := s.db
 
 	// 优化策略1：分离主查询和关联查询，减少JOIN复杂度
 	// 构建基础查询 - 只查询tunnels表
@@ -2570,7 +2579,7 @@ func (s *Service) GetTunnelsWithPagination(params TunnelQueryParams) (*TunnelLis
 	// 优化策略2：使用子查询优化COUNT，避免复杂JOIN
 	countQuery := "SELECT COUNT(*) " + baseQuery + whereClause
 	var total int
-	err = sqlDB.QueryRow(countQuery, args...).Scan(&total)
+	err := sqlDB.Raw(countQuery, args...).Scan(&total).Error
 	if err != nil {
 		return nil, fmt.Errorf("获取总数失败: %v", err)
 	}
@@ -2634,7 +2643,7 @@ func (s *Service) GetTunnelsWithPagination(params TunnelQueryParams) (*TunnelLis
 
 	// 执行主查询
 	query := selectFields + baseQuery + whereClause + orderClause + limitClause
-	rows, err := sqlDB.Query(query, args...)
+	rows, err := sqlDB.Raw(query, args...).Rows()
 	if err != nil {
 		return nil, fmt.Errorf("查询隧道列表失败: %v", err)
 	}
@@ -2713,10 +2722,7 @@ func (s *Service) getEndpointsByIDs(endpointIDs []int64) (map[int64]struct {
 		}), nil
 	}
 
-	sqlDB, err := s.db.DB()
-	if err != nil {
-		return nil, err
-	}
+	sqlDB := s.db
 
 	// 构建IN查询
 	placeholders := strings.Repeat("?,", len(endpointIDs))
@@ -2734,7 +2740,7 @@ func (s *Service) getEndpointsByIDs(endpointIDs []int64) (map[int64]struct {
 		args[i] = id
 	}
 
-	rows, err := sqlDB.Query(query, args...)
+	rows, err := sqlDB.Raw(query, args...).Rows()
 	if err != nil {
 		return nil, err
 	}
@@ -2771,10 +2777,7 @@ func (s *Service) getGroupsByTunnelIDs(tunnelIDs []int64) (map[int64][]models.Gr
 		return make(map[int64][]models.Group), nil
 	}
 
-	sqlDB, err := s.db.DB()
-	if err != nil {
-		return nil, err
-	}
+	sqlDB := s.db
 
 	// 构建IN查询
 	placeholders := strings.Repeat("?,", len(tunnelIDs))
@@ -2793,7 +2796,7 @@ func (s *Service) getGroupsByTunnelIDs(tunnelIDs []int64) (map[int64][]models.Gr
 		args[i] = id
 	}
 
-	rows, err := sqlDB.Query(query, args...)
+	rows, err := sqlDB.Raw(query, args...).Rows()
 	if err != nil {
 		return nil, err
 	}
@@ -2820,24 +2823,22 @@ func (s *Service) getEndpointsWithGroups(endpointIDs []int) ([]struct {
 	GroupID   *int
 	GroupName *string
 }, error) {
-	sqlDB, err := s.db.DB()
-	if err != nil {
-		return nil, fmt.Errorf("获取数据库连接失败: %v", err)
-	}
+	sqlDB := s.db
 
 	// 构建查询
-	query := `
+	query := fmt.Sprintf(`
 		SELECT e.id, e.name, e.group_id, eg.name AS group_name
 		FROM endpoints e
 		LEFT JOIN endpoint_groups eg ON e.group_id = eg.id
-		WHERE e.id IN (?` + strings.Repeat(",?", len(endpointIDs)-1) + `)`
+		WHERE e.id IN (%s)
+	`, buildPostgresPlaceholders(len(endpointIDs)))
 
 	args := make([]interface{}, len(endpointIDs))
 	for i, id := range endpointIDs {
 		args[i] = id
 	}
 
-	rows, err := sqlDB.Query(query, args...)
+	rows, err := sqlDB.Raw(query, args...).Rows()
 	if err != nil {
 		return nil, fmt.Errorf("查询端点信息失败: %v", err)
 	}
@@ -2895,14 +2896,7 @@ func (s *Service) getEndpointWithGroup(endpointID int) (struct {
 	Name      string
 	GroupName *string
 }, error) {
-	sqlDB, err := s.db.DB()
-	if err != nil {
-		return struct {
-			ID        int
-			Name      string
-			GroupName *string
-		}{}, fmt.Errorf("获取数据库连接失败: %v", err)
-	}
+	sqlDB := s.db
 
 	query := `
 		SELECT e.id, e.name, eg.name AS group_name
@@ -2917,7 +2911,7 @@ func (s *Service) getEndpointWithGroup(endpointID int) (struct {
 	}
 	var groupName sql.NullString
 
-	err = sqlDB.QueryRow(query, endpointID).Scan(&endpoint.ID, &endpoint.Name, &groupName)
+	err := sqlDB.Raw(query, endpointID).Row().Scan(&endpoint.ID, &endpoint.Name, &groupName)
 	if err != nil {
 		return endpoint, fmt.Errorf("查询端点信息失败: %v", err)
 	}

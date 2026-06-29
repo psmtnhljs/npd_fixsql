@@ -83,7 +83,7 @@ func (h *ServicesHandler) handleSingleMode(c *gin.Context, req *ServiceCreateReq
 	var endpointName string
 	db := h.tunnelService.DB()
 	err := db.QueryRow(
-		"SELECT name FROM endpoints WHERE id = ?",
+		"SELECT name FROM endpoints WHERE id = $1",
 		req.Inbounds.MasterID,
 	).Scan(&endpointName)
 	if err != nil {
@@ -233,7 +233,7 @@ func (h *ServicesHandler) handleBothwayMode(c *gin.Context, req *ServiceCreateRe
 	db := h.tunnelService.DB()
 	// 获取server endpoint信息
 	err := db.QueryRow(
-		"SELECT id, url, hostname, api_path, api_key, name FROM endpoints WHERE id = ?",
+		"SELECT id, url, hostname, api_path, api_key, name FROM endpoints WHERE id = $1",
 		serverConfig.MasterID,
 	).Scan(&serverEndpoint.ID, &serverEndpoint.URL, &serverEndpoint.Hostname, &serverEndpoint.APIPath, &serverEndpoint.APIKey, &serverEndpoint.Name)
 	if err != nil {
@@ -676,6 +676,6 @@ func (h *ServicesHandler) handleIntranetMode(c *gin.Context, req *ServiceCreateR
 // getTunnelIDByName 通过隧道名称获取隧道数据库ID
 func (h *ServicesHandler) getTunnelIDByName(tunnelName string) (int64, error) {
 	var tunnelID int64
-	err := h.tunnelService.DB().QueryRow(`SELECT id FROM tunnels WHERE name = ?`, tunnelName).Scan(&tunnelID)
+	err := h.tunnelService.DB().QueryRow(`SELECT id FROM tunnels WHERE name = $1`, tunnelName).Scan(&tunnelID)
 	return tunnelID, err
 }
