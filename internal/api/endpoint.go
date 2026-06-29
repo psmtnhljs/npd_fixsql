@@ -842,6 +842,11 @@ func (h *EndpointHandler) HandleGetEndpointInfo(c *gin.Context) {
 		if updateErr := h.endpointService.UpdateEndpointInfo(id, *info); updateErr != nil {
 			log.Errorf("[Master-%v] 更新系统信息失败: %v", ep.ID, updateErr)
 		} else {
+			if ep.Status != models.EndpointStatusDisconnect {
+				if statusErr := h.endpointService.UpdateEndpointStatus(id, models.EndpointStatusOnline); statusErr != nil {
+					log.Errorf("[Master-%v] 更新端点状态失败: %v", ep.ID, statusErr)
+				}
+			}
 			// 在日志中显示uptime信息
 			uptimeMsg := fmt.Sprintf("%d秒", info.Uptime)
 			log.Infof("[Master-%v] 系统信息已更新: OS=%s, Arch=%s, Ver=%s, Uptime=%s", ep.ID, info.OS, info.Arch, info.Ver, uptimeMsg)
@@ -956,6 +961,11 @@ func (h *EndpointHandler) HandleGetEndpointDetail(c *gin.Context) {
 			if updateErr := h.endpointService.UpdateEndpointInfo(id, *info); updateErr != nil {
 				log.Errorf("[Master-%v] 更新系统信息到数据库失败: %v", ep.ID, updateErr)
 			} else {
+				if ep.Status != models.EndpointStatusDisconnect {
+					if statusErr := h.endpointService.UpdateEndpointStatus(id, models.EndpointStatusOnline); statusErr != nil {
+						log.Errorf("[Master-%v] 更新端点状态失败: %v", ep.ID, statusErr)
+					}
+				}
 				// 在日志中显示uptime信息
 				uptimeMsg := fmt.Sprintf("%d秒", info.Uptime)
 				log.Infof("[Master-%v] 详情页刷新：系统信息已更新: OS=%s, Arch=%s, Ver=%s, Uptime=%s", ep.ID, info.OS, info.Arch, info.Ver, uptimeMsg)
@@ -1259,6 +1269,11 @@ func (h *EndpointHandler) fetchAndUpdateEndpointInfo(endpointID int64) {
 		if updateErr := h.endpointService.UpdateEndpointInfo(endpointID, *info); updateErr != nil {
 			log.Errorf("[Master-%d] 更新系统信息失败: %v", endpointID, updateErr)
 		} else {
+			if endpoint.Status != models.EndpointStatusDisconnect {
+				if statusErr := h.endpointService.UpdateEndpointStatus(endpointID, models.EndpointStatusOnline); statusErr != nil {
+					log.Errorf("[Master-%d] 更新端点状态失败: %v", endpointID, statusErr)
+				}
+			}
 			// 在日志中显示uptime信息
 			uptimeMsg := fmt.Sprintf("%d秒", info.Uptime)
 			log.Infof("[Master-%d] 系统信息已更新: OS=%s, Arch=%s, Ver=%s, Uptime=%s", endpointID, info.OS, info.Arch, info.Ver, uptimeMsg)
