@@ -253,7 +253,7 @@ func (h *ServicesHandler) handleBothwayMode(c *gin.Context, req *ServiceCreateRe
 
 	// 获取client endpoint信息
 	err = db.QueryRow(
-		"SELECT id, url, hostname, api_path, api_key, name FROM endpoints WHERE id = ?",
+		"SELECT id, url, hostname, api_path, api_key, name FROM endpoints WHERE id = $1",
 		clientConfig.MasterID,
 	).Scan(&clientEndpoint.ID, &clientEndpoint.URL, &clientEndpoint.Hostname, &clientEndpoint.APIPath, &clientEndpoint.APIKey, &clientEndpoint.Name)
 	if err != nil {
@@ -468,7 +468,7 @@ func (h *ServicesHandler) handleIntranetMode(c *gin.Context, req *ServiceCreateR
 	db := h.tunnelService.DB()
 	// 获取server endpoint信息
 	err := db.QueryRow(
-		"SELECT id, url, hostname, api_path, api_key, name FROM endpoints WHERE id = ?",
+		"SELECT id, url, hostname, api_path, api_key, name FROM endpoints WHERE id = $1",
 		serverConfig.MasterID,
 	).Scan(&serverEndpoint.ID, &serverEndpoint.URL, &serverEndpoint.IP, &serverEndpoint.APIPath, &serverEndpoint.APIKey, &serverEndpoint.Name)
 	if err != nil {
@@ -488,7 +488,7 @@ func (h *ServicesHandler) handleIntranetMode(c *gin.Context, req *ServiceCreateR
 
 	// 获取client endpoint信息
 	err = db.QueryRow(
-		"SELECT id, url, hostname, api_path, api_key, name FROM endpoints WHERE id = ?",
+		"SELECT id, url, hostname, api_path, api_key, name FROM endpoints WHERE id = $1",
 		clientConfig.MasterID,
 	).Scan(&clientEndpoint.ID, &clientEndpoint.URL, &clientEndpoint.IP, &clientEndpoint.APIPath, &clientEndpoint.APIKey, &clientEndpoint.Name)
 	if err != nil {
