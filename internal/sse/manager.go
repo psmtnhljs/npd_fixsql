@@ -512,7 +512,7 @@ func (m *Manager) hasActiveTunnels(endpointID int64) bool {
 	err := m.db.QueryRow(`
 		SELECT COUNT(*)
 		FROM tunnels
-		WHERE endpoint_id = ? AND status = 'running'
+		WHERE endpoint_id = $1 AND status = 'running'
 	`, endpointID).Scan(&count)
 
 	if err != nil {
@@ -526,7 +526,7 @@ func (m *Manager) hasActiveTunnels(endpointID int64) bool {
 // markEndpointFail 更新端点状态为 FAIL
 func (m *Manager) markEndpointFail(endpointID int64) {
 	// 更新端点状态为 FAIL，避免重复写
-	res, err := m.db.Exec(`UPDATE endpoints SET status = 'FAIL', updated_at = NOW() WHERE id = ? AND status != 'FAIL'`, endpointID)
+	res, err := m.db.Exec(`UPDATE endpoints SET status = 'FAIL', updated_at = NOW() WHERE id = $1 AND status != 'FAIL'`, endpointID)
 	if err != nil {
 		// 更新失败直接返回
 		log.Errorf("[Master-%d#SSE]更新状态为 FAIL 失败 %v", endpointID, err)
@@ -547,7 +547,7 @@ func (m *Manager) markEndpointFail(endpointID int64) {
 // markEndpointDisconnect 更新端点状态为 DISCONNECT
 func (m *Manager) markEndpointDisconnect(endpointID int64) {
 	// 更新端点状态为 DISCONNECT，避免重复写
-	res, err := m.db.Exec(`UPDATE endpoints SET status = 'DISCONNECT', updated_at = NOW() WHERE id = ? AND status != 'DISCONNECT'`, endpointID)
+	res, err := m.db.Exec(`UPDATE endpoints SET status = 'DISCONNECT', updated_at = NOW() WHERE id = $1 AND status != 'DISCONNECT'`, endpointID)
 	if err != nil {
 		// 更新失败直接返回
 		log.Errorf("[Master-%d#SSE]更新状态为 DISCONNECT 失败 %v", endpointID, err)
@@ -571,7 +571,7 @@ func (m *Manager) setTunnelsOfflineForEndpoint(endpointID int64) error {
 	res, err := m.db.Exec(`
 		UPDATE tunnels 
 		SET status = 'offline', updated_at = NOW() 
-		WHERE endpoint_id = ? AND status != 'offline'
+		WHERE endpoint_id = $1 AND status != 'offline'
 	`, endpointID)
 
 	if err != nil {
@@ -589,7 +589,7 @@ func (m *Manager) setTunnelsOfflineForEndpoint(endpointID int64) error {
 // markEndpointOnline 更新端点状态为 ONLINE
 func (m *Manager) markEndpointOnline(endpointID int64) {
 	// 尝试更新状态为 ONLINE
-	res, err := m.db.Exec(`UPDATE endpoints SET status = 'ONLINE', updated_at = NOW() WHERE id = ? AND status != 'ONLINE'`, endpointID)
+	res, err := m.db.Exec(`UPDATE endpoints SET status = 'ONLINE', updated_at = NOW() WHERE id = $1 AND status != 'ONLINE'`, endpointID)
 	if err != nil {
 		// 更新失败，记录错误并返回
 		log.Errorf("[Master-%d#SSE]更新状态为 ONLINE 失败 %v", endpointID, err)
